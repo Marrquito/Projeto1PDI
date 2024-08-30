@@ -8,6 +8,7 @@ class ImageProcessor:
         self.caminho        = caminho
         self.caminho_saida  = caminho_saida
         self.imagem         = self.abrir_imagem(caminho)
+        self.ler_filtro("filtro.txt")
 
     def abrir_imagem(self, caminho):
         try:
@@ -37,6 +38,19 @@ class ImageProcessor:
             print(f"Imagem salva em {self.caminho_saida}")
         else:
             print("Nenhuma imagem para salvar.")
+    
+    def ler_filtro(self, filtro):
+        with open(filtro, 'r') as f:
+            m, n = map(int, f.readline().strip().split())
+            
+            ox, oy = map(int, f.readline().strip().split())
+            
+            filtro = []
+            for _ in range(m):
+                linha = list(map(float, f.readline().split()))
+                filtro.append(linha)
+        
+        print("m:{}, n:{}, ox:{}, oy:{}, filtro:{}".format(m, n, ox, oy, filtro))
 
 
 if __name__ == "__main__":
