@@ -8,6 +8,13 @@ class ImageProcessor:
         self.caminho        = caminho
         self.caminho_saida  = caminho_saida
         self.imagem         = self.abrir_imagem(caminho)
+        
+        self.m              = None
+        self.n              = None
+        self.ox             = None
+        self.oy             = None
+        self.filtro         = []
+        
         self.ler_filtro("filtro.txt")
 
     def abrir_imagem(self, caminho):
@@ -28,7 +35,6 @@ class ImageProcessor:
         if imagem is not None:
             plt.imshow(imagem)
             plt.axis("off")
-            plt.show()
         else:
             print("Nenhuma imagem para exibir.")
 
@@ -39,18 +45,17 @@ class ImageProcessor:
         else:
             print("Nenhuma imagem para salvar.")
     
-    def ler_filtro(self, filtro):
-        with open(filtro, 'r') as f:
-            m, n = map(int, f.readline().strip().split())
+    def ler_filtro(self, filtro_path):
+        with open(filtro_path, 'r') as f:
+            self.m, self.n = map(int, f.readline().strip().split())
             
-            ox, oy = map(int, f.readline().strip().split())
-            
-            filtro = []
-            for _ in range(m):
+            self.ox, self.oy = map(int, f.readline().strip().split())
+ 
+            for _ in range(self.m):
                 linha = list(map(float, f.readline().split()))
-                filtro.append(linha)
+                self.filtro.append(linha)
         
-        print("m:{}, n:{}, ox:{}, oy:{}, filtro:{}".format(m, n, ox, oy, filtro))
+        print("m:{}, n:{}, ox:{}, oy:{}, filtro:{}".format(self.m, self.n, self.ox, self.oy, self.filtro))
 
 
 if __name__ == "__main__":
