@@ -60,9 +60,26 @@ def aplicar_correlacao(imagem, filtro, offset):
     imagem_resultado = cv2.merge(canais_resultado)
     return imagem_resultado
 
+def aplicar_filtro_pontual(imagem):
+    # Separando os canais de cor
+    canais = cv2.split(imagem)
+    
+    # Aplicando o filtro pontual em cada canal
+    canais_resultado = []
+    for canal in canais:
+        # Aplicando a expressão y=2x para valores de 0 a 128
+        canal = np.where(canal <= 128, 2 * canal, canal)
+        # Aplicando a expressão y=255+2*(128-x) para valores acima de 128
+        canal = np.where(canal > 128, 255 + 2 * (128 - canal), canal)
+        canais_resultado.append(canal)
+    
+    # Combinando os canais novamente
+    imagem_resultado = cv2.merge(canais_resultado)
+    return imagem_resultado
+
 def main():
     # Caminhos para a imagem e o arquivo de filtro
-    caminho_imagem = 'paisagem.jpg'
+    caminho_imagem = 'ryuk.jpg'
     caminho_filtro = 'filtro.txt'
     
     # Lendo a imagem
@@ -72,10 +89,16 @@ def main():
     filtro, offset = ler_filtro(caminho_filtro)
     
     # Aplicando a correlação
-    imagem_resultado = aplicar_correlacao(imagem, filtro, offset)
+    imagem_correlacionada = aplicar_correlacao(imagem, filtro, offset)
     
-    # Salvando a imagem resultante
-    cv2.imwrite('imagem_resultado5.jpg', imagem_resultado)
+    # Salvando a imagem resultante da correlação
+    cv2.imwrite('imagem_correlacionada.jpg', imagem_correlacionada)
+    
+    # Aplicando o filtro pontual
+    imagem_filtro_pontual = aplicar_filtro_pontual(imagem)
+    
+    # Salvando a imagem resultante do filtro pontual
+    cv2.imwrite('imagem_filtro_pontual.jpg', imagem_filtro_pontual)
 
 if __name__ == "__main__":
     main()
