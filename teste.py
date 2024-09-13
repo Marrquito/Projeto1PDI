@@ -36,9 +36,9 @@ def aplicar_correlacao_manual(canal, filtro, offset):
     for i in range(altura_canal):
         for j in range(largura_canal):
             # Região da imagem que será multiplicada pelo filtro
-            region = canal_padded[i:i+altura_filtro, j:j+largura_filtro]
+            vizinhanca = canal_padded[i:i+altura_filtro, j:j+largura_filtro]
             # Multiplicação elemento a elemento e soma
-            resultado[i, j] = np.sum(region * filtro) + offset
+            resultado[i, j] = np.sum(vizinhanca * filtro) + offset
     
     # Aplicando o valor absoluto
     resultado = np.abs(resultado)
