@@ -172,6 +172,7 @@ class ImageProcessor:
     def aplicar_filtro_pontual_banda_y(self):
         # Convertendo a imagem para o espaço de cor YIQ
         imagem_yiq = self.rgb_to_yiq()
+        
         # Extrai a banda Y
         banda_y = self.get_y_band(imagem_yiq)
        
@@ -181,8 +182,11 @@ class ImageProcessor:
         # Aplica a primeira parte do filtro: y = 2x para valores de 0 a 128
         banda_y_filtrada[banda_y <= 128] = 2 * banda_y[banda_y <= 128]
         
-        # Aplica a segunda parte do filtro: y = 255 + 2*(128 - x) para valores acima de 128
-        banda_y_filtrada[banda_y > 128] = 255 + 2 * (128 - banda_y[banda_y > 128])
+        # Aplica a segunda parte do filtro: y = 255 - 2*(128 - x) para valores acima de 128
+        banda_y_filtrada[banda_y > 128] = 255 - 2 * (128 - banda_y[banda_y > 128])
+        
+        # Garante que os valores filtrados estejam na faixa [0, 255]
+        banda_y_filtrada = np.clip(banda_y_filtrada, 0, 255)
         
         # Substitui a banda Y na imagem YIQ pela banda filtrada
         imagem_yiq_com_filtrada = self.substituir_banda_y(imagem_yiq, banda_y_filtrada)
@@ -194,7 +198,7 @@ class ImageProcessor:
     
 if __name__ == "__main__":
     caminho_entrada = str(input("Digite o caminho da imagem: "))
-    caminho_filtro   = str(input("Digite o caminho do filtro: "))
+    caminho_filtro  = str(input("Digite o caminho do filtro: "))
     
     processador = ImageProcessor(caminho_entrada, caminho_filtro)
     
