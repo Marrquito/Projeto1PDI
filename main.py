@@ -205,5 +205,5 @@ if __name__ == "__main__":
     processador.salvar_imagem(imagem_filtro_pontual, "resultado_img_filtro_pontual.jpg")
     
     imagem_filtro_pontual_banda_y = processador.aplicar_filtro_pontual_banda_y()
-    processador.salvar_imagem(imagem_filtro_pontual, "resultado_img_filtro_pontual_banda_y.jpg")
+    processador.salvar_imagem(imagem_filtro_pontual_banda_y, "resultado_img_filtro_pontual_banda_y.jpg")
     
