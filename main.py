@@ -24,7 +24,10 @@ class ImageProcessor:
         try:
             imagem = cv2.imread(self.caminho_img)
             
-            return imagem
+            # convertendo a imagem de BGR para RGB
+            imagem_rgb = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
+            
+            return imagem_rgb
         except IOError:
             print("Erro ao abrir a imagem.")
             
@@ -168,33 +171,75 @@ class ImageProcessor:
         # A banda Y é o primeiro canal da imagem YIQ
         banda_y = imagem_yiq[:, :, 0]
         return banda_y
-    
+
     def aplicar_filtro_pontual_banda_y(self):
         # Convertendo a imagem para o espaço de cor YIQ
         imagem_yiq = self.rgb_to_yiq()
         
         # Extrai a banda Y
         banda_y = self.get_y_band(imagem_yiq)
-       
-        # Cria uma matriz vazia com o mesmo tamanho da banda Y para armazenar o resultado
-        banda_y_filtrada = np.zeros_like(banda_y, dtype=np.float32)
         
-        # Aplica a primeira parte do filtro: y = 2x para valores de 0 a 128
-        banda_y_filtrada[banda_y <= 128] = 2 * banda_y[banda_y <= 128]
+        # Verifica a faixa dos valores da banda Y
+        print("Estatísticas da Banda Y antes da filtragem:")
+        print("Mínimo:", np.min(banda_y))
+        print("Máximo:", np.max(banda_y))
         
-        # Aplica a segunda parte do filtro: y = 255 - 2*(128 - x) para valores acima de 128
-        banda_y_filtrada[banda_y > 128] = 255 - 2 * (128 - banda_y[banda_y > 128])
+        altura, largura = banda_y.shape
+        canal_filtrado = np.zeros((altura, largura), dtype=np.float32)
         
-        # Garante que os valores filtrados estejam na faixa [0, 255]
-        banda_y_filtrada = np.clip(banda_y_filtrada, 0, 255)
+        for i in range(altura):
+            for j in range(largura):
+                if banda_y[i, j] <= 128:
+                    valor_filtrado = 2 * banda_y[i, j]
+                else:
+                    valor_filtrado = 255 - 2 * (banda_y[i, j] - 128)
+                
+                # Garantir que o valor esteja no intervalo [0, 255]
+                canal_filtrado[i, j] = np.clip(valor_filtrado, 0, 255)
+        
+        # Converte o canal filtrado para uint8
+        canal_filtrado = canal_filtrado.astype(np.uint8)
         
         # Substitui a banda Y na imagem YIQ pela banda filtrada
-        imagem_yiq_com_filtrada = self.substituir_banda_y(imagem_yiq, banda_y_filtrada)
+        imagem_yiq_com_filtrada = self.substituir_banda_y(imagem_yiq, canal_filtrado)
         
         # Converte a imagem YIQ de volta para RGB
         imagem_rgb_final = self.yiq_to_rgb(imagem_yiq_com_filtrada)
         
+        # Verifica a faixa dos valores da imagem RGB final
+        print("Estatísticas da Imagem RGB Final:")
+        print("Mínimo:", np.min(imagem_rgb_final))
+        print("Máximo:", np.max(imagem_rgb_final))
+        
         return imagem_rgb_final
+
+    
+    # def aplicar_filtro_pontual_banda_y(self):
+    #     # Convertendo a imagem para o espaço de cor YIQ
+    #     imagem_yiq = self.rgb_to_yiq()
+        
+    #     # Extrai a banda Y
+    #     banda_y = self.get_y_band(imagem_yiq)
+       
+    #     # Cria uma matriz vazia com o mesmo tamanho da banda Y para armazenar o resultado
+    #     banda_y_filtrada = np.zeros_like(banda_y, dtype=np.float32)
+        
+    #     # Aplica a primeira parte do filtro: y = 2x para valores de 0 a 128
+    #     banda_y_filtrada[banda_y <= 128] = 2 * banda_y[banda_y <= 128]
+        
+    #     # Aplica a segunda parte do filtro: y = 255 - 2*(128 - x) para valores acima de 128
+    #     banda_y_filtrada[banda_y > 128] = 255 - 2 * (banda_y[banda_y > 128] - 128)
+        
+    #     # Garante que os valores filtrados estejam na faixa [0, 255]
+    #     banda_y_filtrada = np.clip(banda_y_filtrada, 0, 255)
+        
+    #     # Substitui a banda Y na imagem YIQ pela banda filtrada
+    #     imagem_yiq_com_filtrada = self.substituir_banda_y(imagem_yiq, banda_y_filtrada)
+        
+    #     # Converte a imagem YIQ de volta para RGB
+    #     imagem_rgb_final = self.yiq_to_rgb(imagem_yiq_com_filtrada)
+        
+    #     return imagem_rgb_final
     
 if __name__ == "__main__":
     caminho_entrada = str(input("Digite o caminho da imagem: "))
@@ -202,11 +247,11 @@ if __name__ == "__main__":
     
     processador = ImageProcessor(caminho_entrada, caminho_filtro)
     
-    imagem_correlacionada = processador.aplicar_correlacao()
-    processador.salvar_imagem(imagem_correlacionada, "resultado_img_correlacionada.jpg")
+    # imagem_correlacionada = processador.aplicar_correlacao()
+    # processador.salvar_imagem(imagem_correlacionada, "resultado_img_correlacionada.jpg")
     
-    imagem_filtro_pontual = processador.aplicar_filtro_pontual()
-    processador.salvar_imagem(imagem_filtro_pontual, "resultado_img_filtro_pontual.jpg")
+    # imagem_filtro_pontual = processador.aplicar_filtro_pontual()
+    # processador.salvar_imagem(imagem_filtro_pontual, "resultado_img_filtro_pontual.jpg")
     
     imagem_filtro_pontual_banda_y = processador.aplicar_filtro_pontual_banda_y()
     processador.salvar_imagem(imagem_filtro_pontual_banda_y, "resultado_img_filtro_pontual_banda_y.jpg")
