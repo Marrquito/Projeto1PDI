@@ -161,8 +161,8 @@ def main():
     
     # Lendo a imagem
     imagem = cv2.imread(caminho_imagem)
-    #imagem_pil = Image.open('Shapes.png')
-    #imagem_rgb = np.array(imagem_pil)
+    imagem_pil = Image.open('Shapes.png')
+    imagem_rgb = np.array(imagem_pil)
     
     # Lendo o filtro e o offset
     filtro, offset = ler_filtro(caminho_filtro)
@@ -180,9 +180,9 @@ def main():
     # Salvando a imagem resultante do filtro pontual
     cv2.imwrite('imagem_filtro_pontual_p4.tif', imagem_filtro_pontual)
 
-    #imagem_Y = aplicar_filtro_pontual_na_banda_y(imagem_rgb)
-    #imagem_Y_pill = Image.fromarray(imagem_Y)
-    #imagem_Y_pill.save('imagem_filtro_Y_1.png')
+    imagem_Y = aplicar_filtro_pontual_na_banda_y(imagem_rgb)
+    imagem_Y_pill = Image.fromarray(imagem_Y)
+    imagem_Y_pill.save('imagem_filtro_Y_1.png')
 
 if __name__ == "__main__":
     main()
