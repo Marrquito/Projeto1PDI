@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from PIL import Image
 
 def ler_filtro(arquivo):
     with open(arquivo, 'r') as f:
@@ -11,7 +12,7 @@ def ler_filtro(arquivo):
     # Lendo a matriz de filtro
     matriz = []
     for linha in linhas[1:]:
-        matriz.append(list(map(int, linha.split())))
+        matriz.append(list(map(float, linha.split())))
     
     matriz = np.array(matriz)
     return matriz, offset
@@ -36,9 +37,9 @@ def aplicar_correlacao_manual(canal, filtro, offset):
     for i in range(altura_canal):
         for j in range(largura_canal):
             # Região da imagem que será multiplicada pelo filtro
-            vizinhanca = canal_padded[i:i+altura_filtro, j:j+largura_filtro]
+            vinzinhaca = canal_padded[i:i+altura_filtro, j:j+largura_filtro]
             # Multiplicação elemento a elemento e soma
-            resultado[i, j] = np.sum(vizinhanca * filtro) + offset
+            resultado[i, j] = np.sum(vinzinhaca * filtro) + offset
     
     # Aplicando o valor absoluto
     resultado = np.abs(resultado)
@@ -99,100 +100,89 @@ def aplicar_filtro_pontual(imagem):
     imagem_resultado = cv2.merge(canais_resultado)
     return imagem_resultado
 
-def aplicar_filtro_pontual_banda_y(banda_y):
-    # Cria uma matriz vazia com o mesmo tamanho da banda Y para armazenar o resultado
-    banda_y_filtrada = np.zeros_like(banda_y, dtype=np.float32)
-    
-    # Aplica a primeira parte do filtro: y = 2x para valores de 0 a 128
-    banda_y_filtrada[banda_y <= 128] = 2 * banda_y[banda_y <= 128]
-    
-    # Aplica a segunda parte do filtro: y = 255 + 2*(128 - x) para valores acima de 128
-    banda_y_filtrada[banda_y > 128] = 255 + 2 * (128 - banda_y[banda_y > 128])
-    
-    return banda_y_filtrada
-
-def rgb_to_yiq(imagem_rgb):
-    # Matriz de transformação de RGB para YIQ
-    rgb_to_yiq_matrix = np.array([[0.299, 0.587, 0.114],
-                                  [0.596, -0.274, -0.322],
-                                  [0.211, -0.523, 0.312]])
-
-    # Converta a imagem RGB para float32 para evitar problemas de precisão
-    imagem_rgb = imagem_rgb.astype(np.float32) / 255.0
-
-    # Aplique a matriz de transformação
-    imagem_yiq = np.dot(imagem_rgb, rgb_to_yiq_matrix.T)
-
+def rgb_para_yiq(imagem_rgb):
+    # Converter a imagem RGB para YIQ
+    imagem_yiq = np.zeros_like(imagem_rgb, dtype=np.float32)
+    for x in range(imagem_rgb.shape[0]):
+        for y in range(imagem_rgb.shape[1]):
+            r, g, b = imagem_rgb[x, y] / 255.0
+            Y = 0.299 * r + 0.587 * g + 0.114 * b
+            I = 0.596 * r - 0.274 * g - 0.322 * b
+            Q = 0.211 * r - 0.523 * g + 0.312 * b
+            imagem_yiq[x, y] = [Y, I, Q]
     return imagem_yiq
 
-def yiq_to_rgb(imagem_yiq):
-    # Matriz de transformação de YIQ para RGB
-    yiq_to_rgb_matrix = np.array([[1.0, 0.956, 0.621],
-                                  [1.0, -0.272, -0.647],
-                                  [1.0, -1.106, 1.703]])
+def yiq_para_rgb(imagem_yiq):
+    # Converter a imagem YIQ de volta para RGB
+    imagem_rgb = np.zeros_like(imagem_yiq, dtype=np.float32)
+    for x in range(imagem_yiq.shape[0]):
+        for y in range(imagem_yiq.shape[1]):
+            Y, I, Q = imagem_yiq[x, y]
+            r = Y + 0.956 * I + 0.621 * Q
+            g = Y - 0.272 * I - 0.647 * Q
+            b = Y - 1.106 * I + 1.703 * Q
+            imagem_rgb[x, y] = [r, g, b]
+    return np.clip(imagem_rgb * 255, 0, 255).astype(np.uint8)
 
-    # Aplica a matriz de transformação
-    imagem_rgb = np.dot(imagem_yiq, yiq_to_rgb_matrix.T)
-
-    # Garante que os valores estejam no intervalo [0, 1]
-    imagem_rgb = np.clip(imagem_rgb, 0, 1)
-
-    # Converte para uint8
-    imagem_rgb = (imagem_rgb * 255).astype(np.uint8)
-
-    return imagem_rgb
-
-# Substitui a banda Y original pela filtrada
-def substituir_banda_y(imagem_yiq, banda_y_filtrada):
-    imagem_yiq[:, :, 0] = banda_y_filtrada
-    return imagem_yiq
-
-def get_y_band(imagem_yiq):
-    # A banda Y é o primeiro canal da imagem YIQ
-    banda_y = imagem_yiq[:, :, 0]
-    return banda_y
-
+def aplicar_filtro_pontual_na_banda_y(imagem_rgb):
+    # Converter a imagem RGB para YIQ
+    imagem_yiq = rgb_para_yiq(imagem_rgb)
+    
+    # Separar as bandas Y, I e Q
+    Y, I, Q = imagem_yiq[:, :, 0], imagem_yiq[:, :, 1], imagem_yiq[:, :, 2]
+    
+    # Aplicar o filtro pontual na banda Y
+    Y_filtrada = np.zeros_like(Y, dtype=np.float32)
+    altura, largura = Y.shape
+    for x in range(altura):
+        for y in range(largura):
+            pixel = Y[x, y]
+            if pixel <= 0.5:
+                valor_filtrado = 2 * pixel
+            else:
+                valor_filtrado = 1 - 2 * (pixel - 0.5)
+            Y_filtrada[x, y] = np.clip(valor_filtrado, 0, 1)
+    
+    # Criar uma lista com Y_filtrada, I e Q
+    bandas = [Y_filtrada, I, Q]
+    
+    # Combinar as bandas Y filtrada, I e Q novamente
+    imagem_yiq_filtrada = np.stack(bandas, axis=-1)
+    
+    # Converter a imagem YIQ de volta para RGB
+    imagem_rgb_filtrada = yiq_para_rgb(imagem_yiq_filtrada)
+    
+    return imagem_rgb_filtrada
 
 def main():
     # Caminhos para a imagem e o arquivo de filtro
-    caminho_imagem = 'ryuk.jpg'
+    caminho_imagem = 'testpat1k.tif'
     caminho_filtro = 'filtro.txt'
     
     # Lendo a imagem
     imagem = cv2.imread(caminho_imagem)
+    #imagem_pil = Image.open('Shapes.png')
+    #imagem_rgb = np.array(imagem_pil)
     
     # Lendo o filtro e o offset
     filtro, offset = ler_filtro(caminho_filtro)
     
     # Aplicando a correlação
     imagem_correlacionada = aplicar_correlacao(imagem, filtro, offset)
+
     
     # Salvando a imagem resultante da correlação
-    cv2.imwrite('imagem_correlacionada.jpg', imagem_correlacionada)
+    cv2.imwrite('imagem_correlacionada_p4.tif', imagem_correlacionada)
     
     # Aplicando o filtro pontual
     imagem_filtro_pontual = aplicar_filtro_pontual(imagem)
     
     # Salvando a imagem resultante do filtro pontual
-    cv2.imwrite('imagem_filtro_pontual.jpg', imagem_filtro_pontual)
-    
-    # Convertendo a imagem para o espaço de cor YIQ
-    imagem_yiq = rgb_to_yiq(imagem)
-    # Extrai a banda Y
-    banda_y = get_y_band(imagem_yiq)
-    
-    # Aplica o filtro pontual à banda Y
-    banda_y_filtrada = aplicar_filtro_pontual_banda_y(banda_y)
-    
-    # Substitui a banda Y na imagem YIQ pela banda filtrada
-    imagem_yiq_com_filtrada = substituir_banda_y(imagem_yiq, banda_y_filtrada)
-    
-    # Converte a imagem YIQ de volta para RGB
-    imagem_rgb_final = yiq_to_rgb(imagem_yiq_com_filtrada)
-    
-    # Salva a imagem resultante
-    cv2.imwrite('imagem_filtrada_YIQ.png', imagem_rgb_final)
-    
+    cv2.imwrite('imagem_filtro_pontual_p4.tif', imagem_filtro_pontual)
+
+    #imagem_Y = aplicar_filtro_pontual_na_banda_y(imagem_rgb)
+    #imagem_Y_pill = Image.fromarray(imagem_Y)
+    #imagem_Y_pill.save('imagem_filtro_Y_1.png')
 
 if __name__ == "__main__":
     main()
