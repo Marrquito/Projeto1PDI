@@ -38,16 +38,11 @@ class ImageProcessor:
 
     def salvar_imagem_rgb(self, img, caminho_saida):
         if img is not None:
-            # Verifica se a imagem está em RGB
-            if img.ndim == 3 and img.shape[2] == 3:
-                # A imagem está em RGB, então convertemos para BGR
-                img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            else:
-                # A imagem já está em BGR ou não tem canais de cor
-                img_bgr = img
+
+            img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 
             print(f"Salvando imagem: {caminho_saida}")
-            cv2.imwrite(caminho_saida, img)
+            cv2.imwrite(caminho_saida, img_bgr)
         else:
             print("Nenhuma imagem para salvar.")
     
@@ -224,4 +219,4 @@ if __name__ == "__main__":
     processador.salvar_imagem(imagem_filtro_pontual, "resultado_img_filtro_pontual.jpg")
     
     imagem_filtro_pontual_banda_y = processador.aplicar_filtro_pontual_banda_y()
-    processador.salvar_imagem(imagem_filtro_pontual_banda_y, "resultado_img_filtro_pontual_banda_y.jpg")
+    processador.salvar_imagem_rgb(imagem_filtro_pontual_banda_y, "resultado_img_filtro_pontual_banda_y.jpg")
