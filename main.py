@@ -39,6 +39,7 @@ class ImageProcessor:
                 img_bgr = img
             
             # Salva a imagem
+            print(f"Salvando imagem: {caminho_saida}")
             cv2.imwrite(caminho_saida, img_bgr)
         else:
             print("Nenhuma imagem para salvar.")
