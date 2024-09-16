@@ -8,10 +8,7 @@ class ImageProcessor:
         self.caminho_img    = caminho_img
         self.caminho_filtro = caminho_filtro
         
-        self.imagem         = self.abrir_imagem()
-        
-        if self.abrir_imagem == None:
-            return 
+        self.imagem, self.imagem_rgb = self.abrir_imagem()
         
         self.m              = None
         self.n              = None
@@ -22,9 +19,10 @@ class ImageProcessor:
 
     def abrir_imagem(self):
         try:
-            imagem = cv2.imread(self.caminho_img)
+            imagem      = cv2.imread(self.caminho_img)
+            imagem_rgb  = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
             
-            return imagem
+            return imagem, imagem_rgb
         except IOError:
             print("Erro ao abrir a imagem.")
             
@@ -32,7 +30,16 @@ class ImageProcessor:
 
     def salvar_imagem(self, img, caminho_saida):
         if img is not None:
-            cv2.imwrite(caminho_saida, img)
+            # Verifica se a imagem está em RGB
+            if img.ndim == 3 and img.shape[2] == 3:
+                # A imagem está em RGB, então convertemos para BGR
+                img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            else:
+                # A imagem já está em BGR ou não tem canais de cor
+                img_bgr = img
+            
+            # Salva a imagem
+            cv2.imwrite(caminho_saida, img_bgr)
         else:
             print("Nenhuma imagem para salvar.")
     
@@ -83,10 +90,11 @@ class ImageProcessor:
         return resultado.astype(np.uint8)
     
     def aplicar_correlacao(self):
-        # Aplicando a correlação em cada canal
+        # Separando os canais de cor
         canais = cv2.split(self.imagem)
-        canais_resultado = []
         
+        # Aplicando a correlação em cada canal
+        canais_resultado = []
         for canal in canais:
             # Convertendo o canal para float32 para evitar overflow
             canal = canal.astype(np.float32)
@@ -129,39 +137,37 @@ class ImageProcessor:
         return imagem_resultado
     
     def rgb_to_yiq(self):
-        # Matriz de transformação de RGB para YIQ
-        rgb_to_yiq_matrix = np.array([[0.299, 0.587, 0.114],
-                                    [0.596, -0.274, -0.322],
-                                    [0.211, -0.523, 0.312]])
-
-        # Converta a imagem RGB para float32 para evitar problemas de precisão
-        imagem_rgb = self.imagem.astype(np.float32) / 255.0
-
-        # Aplique a matriz de transformação
-        imagem_yiq = np.dot(imagem_rgb, rgb_to_yiq_matrix.T)
-
+        # Converter a imagem RGB para YIQ
+        imagem_yiq = np.zeros_like(self.imagem_rgb, dtype=np.float32)
+        
+        for x in range(self.imagem_rgb.shape[0]):
+            for y in range(self.imagem_rgb.shape[1]):
+                r, g, b = self.imagem_rgb[x, y] / 255.0
+                Y = 0.299 * r + 0.587 * g + 0.114 * b
+                I = 0.596 * r - 0.274 * g - 0.322 * b
+                Q = 0.211 * r - 0.523 * g + 0.312 * b
+                imagem_yiq[x, y] = [Y, I, Q]
+        
         return imagem_yiq
 
     def yiq_to_rgb(self, imagem_yiq):
-        # Matriz de transformação de YIQ para RGB
-        yiq_to_rgb_matrix = np.array([[1.0, 0.956, 0.621],
-                                    [1.0, -0.272, -0.647],
-                                    [1.0, -1.106, 1.703]])
-
-        # Aplica a matriz de transformação
-        imagem_rgb = np.dot(imagem_yiq, yiq_to_rgb_matrix.T)
-
-        # Garante que os valores estejam no intervalo [0, 1]
-        imagem_rgb = np.clip(imagem_rgb, 0, 1)
-
-        # Converte para uint8
-        imagem_rgb = (imagem_rgb * 255).astype(np.uint8)
-
-        return imagem_rgb
+        # Converter a imagem YIQ de volta para RGB
+        imagem_rgb = np.zeros_like(imagem_yiq, dtype=np.float32)
+        
+        for x in range(imagem_yiq.shape[0]):
+            for y in range(imagem_yiq.shape[1]):
+                Y, I, Q = imagem_yiq[x, y]
+                r = Y + 0.956 * I + 0.621 * Q
+                g = Y - 0.272 * I - 0.647 * Q
+                b = Y - 1.106 * I + 1.703 * Q
+                imagem_rgb[x, y] = [r, g, b]
+        
+        return np.clip(imagem_rgb * 255, 0, 255).astype(np.uint8)
 
     # Substitui a banda Y original pela filtrada
     def substituir_banda_y(self, imagem_yiq, banda_y_filtrada):
         imagem_yiq[:, :, 0] = banda_y_filtrada
+        
         return imagem_yiq
 
     def get_y_band(self, imagem_yiq):
@@ -175,21 +181,22 @@ class ImageProcessor:
         
         # Extrai a banda Y
         banda_y = self.get_y_band(imagem_yiq)
-       
-        # Cria uma matriz vazia com o mesmo tamanho da banda Y para armazenar o resultado
-        banda_y_filtrada = np.zeros_like(banda_y, dtype=np.float32)
         
-        # Aplica a primeira parte do filtro: y = 2x para valores de 0 a 128
-        banda_y_filtrada[banda_y <= 128] = 2 * banda_y[banda_y <= 128]
+        altura, largura = banda_y.shape
+        canal_filtrado  = np.zeros_like(banda_y, dtype=np.float32)
         
-        # Aplica a segunda parte do filtro: y = 255 - 2*(128 - x) para valores acima de 128
-        banda_y_filtrada[banda_y > 128] = 255 - 2 * (128 - banda_y[banda_y > 128])
-        
-        # Garante que os valores filtrados estejam na faixa [0, 255]
-        banda_y_filtrada = np.clip(banda_y_filtrada, 0, 255)
+        for i in range(altura):
+            for j in range(largura):
+                if banda_y[i, j] <= 0.5:
+                    valor_filtrado = 2 * banda_y[i, j]
+                else:
+                    valor_filtrado = 1 - 2 * (banda_y[i, j] - 0.5)
+                
+                # Garantir que o valor esteja no intervalo [0, 1]
+                canal_filtrado[i, j] = np.clip(valor_filtrado, 0, 1)
         
         # Substitui a banda Y na imagem YIQ pela banda filtrada
-        imagem_yiq_com_filtrada = self.substituir_banda_y(imagem_yiq, banda_y_filtrada)
+        imagem_yiq_com_filtrada = self.substituir_banda_y(imagem_yiq, canal_filtrado)
         
         # Converte a imagem YIQ de volta para RGB
         imagem_rgb_final = self.yiq_to_rgb(imagem_yiq_com_filtrada)
@@ -210,4 +217,3 @@ if __name__ == "__main__":
     
     imagem_filtro_pontual_banda_y = processador.aplicar_filtro_pontual_banda_y()
     processador.salvar_imagem(imagem_filtro_pontual_banda_y, "resultado_img_filtro_pontual_banda_y.jpg")
-    
