@@ -84,7 +84,7 @@ class ImageProcessor:
         resultado = np.abs(resultado)
         
         # Normalizando os valores para a faixa [0, 1]
-        resultado = resultado / np.max(resultado)
+        resultado = (resultado - np.min(resultado)) / (np.max(resultado)- np.min(resultado))
         
         # Expansão de histograma para a faixa [0, 255]
         resultado = resultado * 255
